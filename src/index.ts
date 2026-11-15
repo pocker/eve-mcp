@@ -12,6 +12,7 @@ import { migrate } from "./db/migrate";
 import { startPrune } from "./db/prune";
 import { startSdeRefresh } from "./sde/import";
 import { sessionMiddleware } from "./auth/session";
+import { clientIp, rateLimit } from "./ratelimit";
 import { routes as authRoutes } from "./auth/routes";
 import { routes as webRoutes } from "./web/routes";
 import { routes as oauthRoutes } from "./oauth/routes";
@@ -38,6 +39,11 @@ app.use(async (c, next) => {
   await next();
   if (!c.res.headers.has("Cache-Control")) c.header("Cache-Control", "no-store");
 });
+// Everything without its own limit (pages, forms, /.well-known/*). Runs before the session lookup so floods do not reach Postgres.
+// /health is left out so the deploy script and the proxy can poll it freely.
+const OWN_LIMIT = ["/mcp", "/auth/", "/oauth/", "/health"];
+const webLimit = rateLimit({ key: clientIp, perMinute: 120 });
+app.use((c, next) => (OWN_LIMIT.some((p) => c.req.path.startsWith(p)) ? next() : webLimit(c, next)));
 // Hono csrf() only looks at form content types; this refuses any other state-changing request from a foreign site or Origin.
 const publicOrigin = new URL(config.publicUrl).origin;
 const headerCheck: MiddlewareHandler = async (c, next) => {

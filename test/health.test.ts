@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import { app } from "../src/index";
+import { config } from "../src/config";
 import { cssVersion } from "../src/web/layout";
 import { sha256 } from "../src/crypto";
 import { features } from "../src/features";
@@ -78,4 +79,22 @@ test("robots.txt, sitemap.xml, llms.txt and favicons are public and static", asy
   expect(svg.headers.get("content-type")).toBe("image/svg+xml");
   expect(await svg.text()).toContain("<svg");
   expect(await (await app.request("/")).text()).toContain('href="/favicon.svg"');
+});
+
+test("pages share a per-IP limit; /health and routes with their own limit are not counted", async () => {
+  const prev = config.clientIpHeader;
+  config.clientIpHeader = "x-test-ip";
+  try {
+    const get = (path: string, ip = "198.51.100.7") => app.request(path, { headers: { "x-test-ip": ip } });
+    for (let i = 0; i < 120; i++) expect((await get("/privacy")).status).toBe(200);
+    const blocked = await get("/features");
+    expect(blocked.status).toBe(429);
+    expect(Number(blocked.headers.get("Retry-After"))).toBeGreaterThan(0);
+    expect((await get("/health")).status).not.toBe(429);
+    expect((await get("/.well-known/oauth-authorization-server")).status).toBe(429);
+    expect((await get("/oauth/authorize")).status).not.toBe(429);
+    expect((await get("/privacy", "198.51.100.8")).status).toBe(200);
+  } finally {
+    config.clientIpHeader = prev;
+  }
 });

@@ -442,6 +442,7 @@ callback serves login, add character and OAuth consent; `sso_states.purpose` tel
   Empty means the socket address (the proxy's IP). Only set it when the app port is reachable only
   through the proxy, and the proxy overwrites that header: otherwise any client can spoof it.
 - **Body size:** the app caps every request body at 1 MB (`bodyLimit`); `/mcp` at 256 KB.
+- **Rate limits:** per IP on `/auth/*` and `/oauth/*` (per route), on `/mcp` (300/min per IP, then 120/min per grant), and one shared 120/min per IP on everything else (pages, forms, `/.well-known/*`, `index.ts`). `/health` has none. All are in-memory per replica (`src/ratelimit.ts`).
 - **Static data (SDE):** the first start imports CCP's static data in the background (under 1 minute on a fast link; needs about 100 MB of temp space in the container's `/tmp` and 40 MB of Postgres). Until it is done `get_type_info` uses ESI and the other SDE tools say it is still loading. Force an import with `docker compose -p eve-mcp exec app bun run sde:import`. The image needs the `unzip` package (Containerfile installs it); the app container needs outbound HTTPS to `developers.eveonline.com`.
 - **Health:** `GET /health` checks Postgres with `select 1`, no ESI call.
 - **Cloudflare in front:** DNS record proxied (orange cloud). The SSL mode must match what your
