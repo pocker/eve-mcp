@@ -1,0 +1,84 @@
+# Production on a single host. Deploy: see README.md ("Self-hosting").
+# Values come from a .env file next to this file (see .env.example).
+# TLS is done by your own reverse proxy, which forwards to the host port ${APP_PORT}.
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Containerfile
+    image: ${IMAGE:-eve-mcp}:${IMAGE_TAG:-latest}
+    # Publishes the app on the host. Only your reverse proxy should be able to reach this port.
+    ports: ["${APP_PORT:-38080}:3000"]
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      PUBLIC_URL: ${PUBLIC_URL}
+      CLIENT_IP_HEADER: ${CLIENT_IP_HEADER:-}
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: eve
+      POSTGRES_DB: eve_mcp
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      EVE_CLIENT_ID: ${EVE_CLIENT_ID}
+      EVE_CLIENT_SECRET_FILE: /run/secrets/eve_client_secret
+      TOKEN_ENC_KEY_FILE: /run/secrets/token_enc_key
+      ESI_CONTACT: ${ESI_CONTACT}
+      ADMIN_CHARACTER_IDS: ${ADMIN_CHARACTER_IDS:-}
+    secrets: [postgres_password, eve_client_secret, token_enc_key]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # the Containerfile defines the healthcheck (GET /health)
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: eve
+      POSTGRES_DB: eve_mcp
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets: [postgres_password]
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "eve", "-d", "eve_mcp"]
+      interval: 5s
+      retries: 10
+
+  backup:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGHOST: postgres
+      PGUSER: eve
+      PGDATABASE: eve_mcp
+    secrets: [postgres_password]
+    volumes:
+      - ./backups:/backups
+    # every 6 h: pg_dump, keep the newest 28 (7 days)
+    command:
+      - sh
+      - -c
+      - |
+        export PGPASSWORD="$$(cat /run/secrets/postgres_password)"
+        while true; do
+          f=/backups/eve_mcp-$$(date -u +%Y%m%dT%H%M%SZ).dump
+          pg_dump -Fc -f "$$f.tmp" && mv "$$f.tmp" "$$f" || echo "backup failed" >&2
+          ls -1t /backups/*.dump 2>/dev/null | tail -n +29 | xargs -r rm -f
+          sleep 21600
+        done
+
+volumes:
+  pg_data:
+
+secrets:
+  postgres_password:
+    file: ./secrets/postgres_password
+  eve_client_secret:
+    file: ./secrets/eve_client_secret
+  token_enc_key:
+    file: ./secrets/token_enc_key

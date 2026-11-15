@@ -1,0 +1,19 @@
+# Local dev only: Postgres on localhost:5432. The app runs on the host with `bun run dev`.
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: eve
+      POSTGRES_PASSWORD: eve
+      POSTGRES_DB: eve_mcp
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pg_dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "eve", "-d", "eve_mcp"]
+      interval: 2s
+      retries: 30
+
+volumes:
+  pg_dev:

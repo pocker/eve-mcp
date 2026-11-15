@@ -1,0 +1,23 @@
+// Fixed scope list asked at every EVE SSO flow. The only write scope is fittings (decision in docs/SECURITY.md). esi-planets.manage_planets.v1 is named "manage" but is the only scope for planet reads; we only call its GET endpoints. esi.activity.char:read is read-only (military campaign participation; ESI rejects the esi-activities.read_character.v1 alias with 401). It must be assigned to the app on developers.eveonline.com, or SSO answers invalid_scope for every sign-in.
+export const EVE_SCOPES: readonly string[] = [
+  "esi-location.read_location.v1",
+  "esi-location.read_ship_type.v1",
+  "esi-location.read_online.v1",
+  "esi-skills.read_skills.v1",
+  "esi-skills.read_skillqueue.v1",
+  "esi-wallet.read_character_wallet.v1",
+  "esi-assets.read_assets.v1",
+  "esi-markets.read_character_orders.v1",
+  "esi-industry.read_character_jobs.v1",
+  "esi-fittings.read_fittings.v1",
+  "esi-fittings.write_fittings.v1",
+  "esi-contracts.read_character_contracts.v1",
+  "esi-clones.read_clones.v1",
+  "esi-clones.read_implants.v1",
+  "esi-killmails.read_killmails.v1",
+  "esi-characters.read_standings.v1",
+  "esi-characters.read_loyalty.v1",
+  "esi-industry.read_character_mining.v1",
+  "esi-planets.manage_planets.v1",
+  "esi.activity.char:read",
+];
