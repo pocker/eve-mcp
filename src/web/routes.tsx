@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { z } from "zod";
 import { sql } from "../db/db";
 import { decrypt } from "../crypto";
@@ -7,7 +7,7 @@ import { purgeCharacterCache, unlinkCharacter } from "../auth/characters";
 import { revokeEveToken } from "../auth/eve-sso";
 import { destroySession, requireUser } from "../auth/session";
 import type { AppEnv } from "../types";
-import { KofiButton, Layout, Mark } from "./layout";
+import { KofiButton, Layout, Mark, REPO_URL } from "./layout";
 import { MessagePage } from "./pages";
 import { ActionRow, Button, Empty, Notice, PageHeader, Panel, RowActions } from "./ui";
 import { EXAMPLES, features } from "../features";
@@ -109,6 +109,73 @@ routes.get("/connect", (c) => {
     </Layout>,
   );
 });
+
+// Public, static files for crawlers, LLM agents and browser tabs. No DB, no outbound call.
+const PUBLIC_PAGES = ["/", "/connect", "/features", "/privacy"];
+const PUBLIC_CACHE = "public, max-age=3600";
+
+routes.get("/robots.txt", (c) =>
+  c.text(
+    [
+      "User-agent: *",
+      "Allow: /",
+      ...["/account", "/characters", "/apps", "/admin", "/auth/", "/oauth/", "/mcp"].map((p) => `Disallow: ${p}`),
+      "",
+      `Sitemap: ${config.publicUrl}/sitemap.xml`,
+      "",
+    ].join("\n"),
+    200,
+    { "Cache-Control": PUBLIC_CACHE },
+  ),
+);
+
+routes.get("/sitemap.xml", (c) =>
+  c.body(
+    `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${PUBLIC_PAGES.map((p) => `<url><loc>${config.publicUrl}${p}</loc></url>`).join("\n")}\n</urlset>\n`,
+    200,
+    { "Content-Type": "application/xml; charset=utf-8", "Cache-Control": PUBLIC_CACHE },
+  ),
+);
+
+routes.get("/llms.txt", (c) => {
+  const base = config.publicUrl;
+  const tools = features()
+    .groups.map((g) => `### ${g.category}\n\n${g.tools.map((t) => `- \`${t.name}\`: ${t.summary}`).join("\n")}`)
+    .join("\n\n");
+  const text = `# EVE MCP
+
+> A free, open-source MCP server for EVE Online. Sign in with EVE SSO, link your characters, and connect an LLM client that can then read the characters you allow.
+
+MCP endpoint: ${base}/mcp (Streamable HTTP, OAuth 2.1; the client starts the sign-in).
+
+The server is read-only by default. It can create and delete saved fittings only when the user opts in per app. It also offers static game data, market prices, route danger and EVE University wiki lookups that need no character.
+
+## Connect
+
+- Claude: Settings, Connectors, Add custom connector. Paste the endpoint URL, then connect.
+- ChatGPT: Settings, Connectors, add a custom connector (developer mode). Paste the URL and choose OAuth.
+- Other MCP clients: add a remote MCP server of type Streamable HTTP with the endpoint URL. Authorization is OAuth 2.1.
+
+## Tools
+
+${tools}
+
+## Links
+
+- [Connect an AI client](${base}/connect): step by step
+- [Features](${base}/features): systems, tools, prompts and examples
+- [Privacy](${base}/privacy): what is stored and for how long
+- [Source code](${REPO_URL}): AGPL-3.0-or-later
+
+${CCP_NOTICE} EVE MCP is an independent tool, not affiliated with CCP Games.
+`;
+  return c.body(text, 200, { "Content-Type": "text/markdown; charset=utf-8", "Cache-Control": PUBLIC_CACHE });
+});
+
+const staticFile = (file: string, type: string) => (c: Context) =>
+  c.body(Bun.file(new URL(`./static/${file}`, import.meta.url)).stream(), 200, { "Content-Type": type, "Cache-Control": "public, max-age=2592000" });
+routes.get("/favicon.ico", staticFile("favicon.ico", "image/x-icon"));
+routes.get("/favicon.svg", staticFile("favicon.svg", "image/svg+xml"));
 
 function StatusPill(props: { id: string; status: SourceStatus }) {
   const { sde, esi } = props.status;

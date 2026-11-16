@@ -4,6 +4,8 @@ import { sha256 } from "../crypto";
 import { CCP_NOTICE } from "../sources";
 import { Button } from "./ui";
 
+export const REPO_URL = "https://github.com/pocker/eve-mcp";
+
 // Content hash in the URL lets the stylesheet be cached forever (Cloudflare included) yet change on deploy.
 export const cssVersion = sha256(readFileSync(new URL("./app.css", import.meta.url), "utf8")).slice(0, 10);
 
@@ -39,6 +41,8 @@ export function Layout(props: { title: string; user?: { id: number; isAdmin: boo
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>{title} - EVE MCP</title>
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+        <link rel="icon" href="/favicon.ico" sizes="48x48" />
         <link rel="stylesheet" href={`/static/app.css?v=${cssVersion}`} />
       </head>
       <body>
@@ -74,7 +78,7 @@ export function Layout(props: { title: string; user?: { id: number; isAdmin: boo
             <KofiButton />
             <span>Free to use. Donations are voluntary, help cover hosting and unlock nothing.</span>
             <a href="/privacy">Privacy</a>
-            <a href="https://github.com/pocker/eve-mcp" rel="noopener noreferrer">Source</a>
+            <a href={REPO_URL} rel="noopener noreferrer">Source</a>
           </span>
         </footer>
       </body>

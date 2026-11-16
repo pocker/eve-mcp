@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import { app } from "../src/index";
 import { cssVersion } from "../src/web/layout";
 import { sha256 } from "../src/crypto";
+import { features } from "../src/features";
 import { dbAvailable } from "./helpers/db";
 
 test("/health answers 200 when Postgres is up, 503 when not", async () => {
@@ -46,4 +47,35 @@ test("pages link the stylesheet with its content hash", async () => {
   const html = await (await app.request("/")).text();
   expect(html).toContain(`/static/app.css?v=${cssVersion}`);
   expect(cssVersion).toBe(sha256(await Bun.file("src/web/app.css").text()).slice(0, 10));
+});
+
+test("robots.txt, sitemap.xml, llms.txt and favicons are public and static", async () => {
+  const robots = await app.request("/robots.txt");
+  expect(robots.status).toBe(200);
+  expect(robots.headers.get("content-type")).toContain("text/plain");
+  expect(await robots.text()).toContain("Sitemap: http://localhost:3000/sitemap.xml");
+
+  const map = await app.request("/sitemap.xml");
+  expect(map.status).toBe(200);
+  expect(map.headers.get("content-type")).toContain("application/xml");
+  const xml = await map.text();
+  for (const p of ["/", "/connect", "/features", "/privacy"]) expect(xml).toContain(`<loc>http://localhost:3000${p}</loc>`);
+  for (const p of ["/account", "/characters", "/apps", "/admin", "/auth", "/oauth", "/mcp"]) expect(xml).not.toContain(`localhost:3000${p}`);
+
+  const llms = await app.request("/llms.txt");
+  expect(llms.status).toBe(200);
+  expect(llms.headers.get("content-type")).toContain("text/markdown");
+  const text = await llms.text();
+  expect(text).toContain("http://localhost:3000/mcp");
+  for (const g of features().groups) for (const t of g.tools) expect(text).toContain(`\`${t.name}\``);
+
+  const ico = await app.request("/favicon.ico");
+  expect(ico.status).toBe(200);
+  expect(ico.headers.get("content-type")).toBe("image/x-icon");
+  expect(ico.headers.get("cache-control")).toContain("max-age=2592000");
+  expect((await ico.arrayBuffer()).byteLength).toBeGreaterThan(0);
+  const svg = await app.request("/favicon.svg");
+  expect(svg.headers.get("content-type")).toBe("image/svg+xml");
+  expect(await svg.text()).toContain("<svg");
+  expect(await (await app.request("/")).text()).toContain('href="/favicon.svg"');
 });

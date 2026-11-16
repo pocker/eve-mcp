@@ -315,6 +315,8 @@ Server-rendered Hono JSX, no SPA, no client JS needed. Design system: tokens (li
 - `/` landing + "Sign in with EVE Online".
 - `/characters` list, add, re-link, remove. Every row has "Re-link": it runs the add-character SSO flow, and when the callback returns a character already on the same user it updates tokens, scopes and `needs_reauth=false` in place (no delete, so `grant_characters` stays). A character on another user is refused (409); a changed owner hash unlinks it first (hard rule 7). Remove deletes the row, so it also removes the character from every connected app, and also revokes EVE tokens via SSO revoke). Each row shows the 64 px portrait from `images.evetech.net` (the CSP allows only that host for images); the consent page does the same.
 - `/features` (public; `/sources` redirects here) "What's available", server-side tabs as plain links (`?tab=systems|tools|prompts|examples`, zod-validated, unknown values fall back to `systems`; `aria-current="page"` on the active one; no JS). `systems` (default, highlighted): status strip (SDE build, ESI error budget; DB only, no outbound call on page load) over the source cards. `tools`: one panel per category. `prompts`, `examples`. Generated from the real registries: `src/features.ts` (category + summary per tool, pinned to the registered tools by a test; prompts from `src/mcp/prompts.ts`) and `src/sources.ts` (the single list of external systems, pinned by a test). When a tool is added, add its `toolInfo` entry; when a new external system is called, add it to `src/sources.ts` and the fixed host list in docs/SECURITY.md.
+- `/robots.txt`, `/sitemap.xml`, `/llms.txt` (public, no DB, no outbound call, built from `PUBLIC_URL`, `Cache-Control: public, max-age=3600`): robots disallows the private areas and points to the sitemap; the sitemap lists `/`, `/connect`, `/features`, `/privacy`; `llms.txt` is the llms.txt-convention summary (endpoint, connect steps, tool list generated from `src/features.ts`, links, CCP notice). When a page becomes public or private, update `PUBLIC_PAGES` and the robots list in `src/web/routes.tsx`.
+- `/favicon.svg`, `/favicon.ico`: our own ring mark in the accent colour (`src/web/static/`), served with `Cache-Control: public, max-age=2592000` and linked in the layout `<head>`. The ico holds 16, 32 and 48 px renders of the SVG (`rsvg-convert` each size, then `magick` to combine); regenerate it when the SVG changes.
 - `/connect` how to add the server URL to Claude, ChatGPT, etc.
 - `/apps` connected MCP clients (grants): name, characters, access ("read only" or "can write fittings"), last used, manage (change characters and the fitting-write box, `/apps/:id`), revoke.
 - `/account`: a short Privacy panel and delete account (deletes everything, revokes all tokens).
@@ -332,7 +334,7 @@ The shared footer (`layout.tsx`) shows the CCP notice (`CCP_NOTICE` in `src/sour
 
 Licence: the code is AGPL-3.0-or-later (`LICENSE`, `package.json`, README "License"). EVE data, names and images are CCP's and not covered; wiki text is CC BY-SA 4.0 (the wiki tools return `license_url` and tell the LLM to keep the page URL when citing).
 
-Static files: only `/static/app.css`, everything else is `Cache-Control: no-store`. Strict CSP, no inline script or style.
+Static files: `/static/app.css` (hashed, immutable) and the favicons above (`src/web/static/`, 30 days); everything else is `Cache-Control: no-store`. Strict CSP, no inline script or style.
 
 Sessions: random 32-byte ID in cookie `__Host-session` (`HttpOnly; Secure; SameSite=Lax; Path=/`),
 SHA-256 in `sessions` table, 30 days sliding. CSRF: Hono `csrf()` origin check on every POST, a `Sec-Fetch-Site`/`Origin` header check on every non-safe request (except `/mcp` and the token, register, revoke endpoints), plus
@@ -389,7 +391,7 @@ src/
   mcp/              routes.ts (handleMcp, /mcp route), server.ts (builds McpServer per grant), instructions.ts, prompts.ts, tools/ (index.ts, util.ts, character.ts, character-more.ts, market.ts, universe.ts, fittings.ts, eft.ts), grant.ts (Grant, requireCharacter)
   esi/              client.ts (calls, guard, paging), cache.ts, token.ts (accessToken, refresh), character.ts (scope check + authed calls), scopes.ts, names.ts (ID -> name, cached)
   sources.ts, features.ts  single lists behind /features and about_sources (external systems; tool categories and summaries)
-  web/              routes.tsx, pages.tsx (message page), layout.tsx, ui.tsx (Button, PageHeader, Panel, Notice, ActionRow, RowActions, Empty), app.css (served at /static/app.css, so the CSP needs no inline style)
+  web/              routes.tsx, pages.tsx (message page), layout.tsx, ui.tsx (Button, PageHeader, Panel, Notice, ActionRow, RowActions, Empty), app.css (served at /static/app.css, so the CSP needs no inline style), static/ (favicon.svg, favicon.ico)
   ratelimit.ts      in-memory token bucket (per replica), clientIp()
 test/               bun test against a real Postgres, fake fetch for ESI and SSO
   setup.ts          preload (bunfig.toml): fake env so tests need no .env
