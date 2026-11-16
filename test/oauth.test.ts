@@ -138,6 +138,22 @@ describe("SSRF guard", () => {
     net.fetch = realFetch;
     net.resolve = realResolve;
   });
+
+  test("auth methods: accepted when the client can use none, rejected otherwise", async () => {
+    net.resolve = async () => ["93.184.216.34"];
+    const ok = { name: "Doc client", clientId: url, redirectUris: ["https://doc.example/cb"] };
+    const chatgpt = { token_endpoint_auth_method: "private_key_jwt", token_endpoint_auth_methods_supported: ["none", "private_key_jwt"], jwks_uri: "https://doc.example/jwks.json" };
+    net.fetch = async () => new Response(doc(url, chatgpt));
+    expect(await fetchMetadataDocument(url)).toEqual(ok);
+    net.fetch = async () => new Response(doc(url, { token_endpoint_auth_method: "none" }));
+    expect(await fetchMetadataDocument(url)).toEqual(ok);
+    net.fetch = async () => new Response(doc(url, { token_endpoint_auth_method: "private_key_jwt" }));
+    await expect(fetchMetadataDocument(url)).rejects.toThrow("none");
+    net.fetch = async () => new Response(doc(url, { token_endpoint_auth_methods_supported: ["private_key_jwt"] }));
+    await expect(fetchMetadataDocument(url)).rejects.toThrow("none");
+    net.fetch = realFetch;
+    net.resolve = realResolve;
+  });
 });
 
 describe("mcpAuth without a token", () => {
@@ -342,14 +358,26 @@ describe.skipIf(!dbAvailable)("OAuth flow (needs Postgres)", () => {
     expect(html.indexOf("Unverified app")).toBeGreaterThan(html.indexOf("An app at"));
   });
 
-  test("consent page for a URL client_id shows the client_id host as the identity", async () => {
+  // The document is shaped like ChatGPT's: singular private_key_jwt, plural lists none. (Fetched here, not pre-inserted; it shares the authorize rate limit, so no extra request.)
+  test("consent page for a URL client_id (fetched document) shows the client_id host as the identity", async () => {
     const { userId } = await setup();
     const cid = "https://cimd.example/meta.json";
-    await sql`insert into oauth_clients (client_id, name, redirect_uris) values (${cid}, 'Friendly Bank', ${sql.array([redirect], "TEXT")})`;
-    const html = await (await app.request(`/oauth/authorize?${authzQuery(cid)}`, { headers: { "x-user": String(userId) } })).text();
-    expect(html).toContain("<strong>cimd.example</strong>");
-    expect(html).toContain("calls itself");
-    expect(html).not.toContain("Unverified app");
+    const realFetch = net.fetch;
+    const realResolve = net.resolve;
+    net.resolve = async () => ["93.184.216.34"];
+    net.fetch = async () =>
+      new Response(JSON.stringify({ client_id: cid, client_name: "Friendly Bank", redirect_uris: [redirect], token_endpoint_auth_method: "private_key_jwt", token_endpoint_auth_methods_supported: ["none", "private_key_jwt"], grant_types: ["authorization_code", "refresh_token"], response_types: ["code"], token_endpoint_auth_signing_alg: "RS256", jwks_uri: "https://cimd.example/jwks.json" }));
+    try {
+      const res = await app.request(`/oauth/authorize?${authzQuery(cid)}`, { headers: { "x-user": String(userId) } });
+      expect(res.status).toBe(200);
+      const html = await res.text();
+      expect(html).toContain("<strong>cimd.example</strong>");
+      expect(html).toContain("calls itself");
+      expect(html).not.toContain("Unverified app");
+    } finally {
+      net.fetch = realFetch;
+      net.resolve = realResolve;
+    }
   });
 
   test("refresh rotates; reuse of the old token revokes the grant", async () => {

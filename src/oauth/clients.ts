@@ -2,6 +2,7 @@ import { lookup } from "node:dns/promises";
 import { z } from "zod";
 import { sql } from "../db/db";
 import { AppError } from "../errors";
+import { log } from "../log";
 
 // Swapped in tests so nothing touches the network.
 export const net = {
@@ -37,7 +38,8 @@ const metadataSchema = z.object({
   client_id: z.string(),
   client_name: clientName,
   redirect_uris: redirectUris,
-  token_endpoint_auth_method: z.literal("none").optional(),
+  token_endpoint_auth_method: z.string().max(100).optional(),
+  token_endpoint_auth_methods_supported: z.array(z.string().max(100)).max(20).optional(),
 });
 
 export type Client = { clientId: string; name: string; redirectUris: string[] };
@@ -148,6 +150,9 @@ export async function fetchMetadataDocument(clientId: string): Promise<Client> {
   }
   const doc = metadataSchema.safeParse(json);
   if (!doc.success) throw bad("Client metadata document is invalid");
+  // We only do public clients (PKCE), so the client must be able to use "none". The plural list wins over the singular preference.
+  const methods = doc.data.token_endpoint_auth_methods_supported ?? [doc.data.token_endpoint_auth_method ?? "none"];
+  if (!methods.includes("none")) throw bad('Client must support token_endpoint_auth_method "none"');
   if (doc.data.client_id !== clientId) throw bad("client_id in the document does not match its URL");
   return { clientId, name: doc.data.client_name, redirectUris: doc.data.redirect_uris };
 }
@@ -169,7 +174,10 @@ export async function getClient(clientId: string): Promise<Client | null> {
     c = await fetchMetadataDocument(clientId);
   } catch (e) {
     if (row) return { clientId, name: row.name, redirectUris: row.redirect_uris }; // stale cache beats an outage
-    if (e instanceof AppError) return null;
+    if (e instanceof AppError) {
+      log("warn", "client metadata fetch failed", { clientId, err: e.message });
+      return null;
+    }
     throw e;
   }
   await sql`

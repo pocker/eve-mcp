@@ -70,6 +70,10 @@ phase 3. Implemented against **MCP spec 2026-07-28** (`basic/authorization`); th
   DCR deprecated, so DCR stays only for clients that still use it. Fetch: HTTPS only, DNS must
   resolve to public IPs only, 5 s timeout, 64 KB cap, no redirects; document `client_id` must equal
   the URL. Cached in `oauth_clients` for 1 h (`created_at` is the fetch time for URL clients).
+  Auth method rule: the document is accepted only if the client can use `none` (public client with
+  PKCE). We read `token_endpoint_auth_methods_supported` if present, else
+  `token_endpoint_auth_method` (absent means `none`). Other methods in the list, like
+  `private_key_jwt`, are ignored, never used.
 - Redirect URIs (DCR and CIMD): `https://`, or `http://` on `127.0.0.1`/`localhost`/`[::1]` with
   any port. No custom schemes (the spec only allows localhost or HTTPS). Exact match at authorize.
 - Responses carry `iss` (RFC 9207) and the metadata sets `authorization_response_iss_parameter_supported`.
