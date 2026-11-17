@@ -1,5 +1,5 @@
 // Fixed scope list asked at every EVE SSO flow. The only write scope is fittings (decision in docs/SECURITY.md). esi-planets.manage_planets.v1 is named "manage" but is the only scope for planet reads; we only call its GET endpoints. esi.activity.char:read is read-only (military campaign participation; ESI rejects the esi-activities.read_character.v1 alias with 401). It must be assigned to the app on developers.eveonline.com, or SSO answers invalid_scope for every sign-in.
-export const EVE_SCOPES: readonly string[] = [
+export const EVE_SCOPES = [
   "esi-location.read_location.v1",
   "esi-location.read_ship_type.v1",
   "esi-location.read_online.v1",
@@ -20,4 +20,28 @@ export const EVE_SCOPES: readonly string[] = [
   "esi-industry.read_character_mining.v1",
   "esi-planets.manage_planets.v1",
   "esi.activity.char:read",
-];
+] as const;
+
+// Plain-English name and reason per scope, shown before sign-in. A test pins the keys to EVE_SCOPES.
+export const SCOPE_INFO: Record<(typeof EVE_SCOPES)[number], [name: string, why: string]> = {
+  "esi-location.read_location.v1": ["Read your location", "Where your character is now (character_overview)."],
+  "esi-location.read_ship_type.v1": ["Read your current ship", "Which ship you fly now (character_overview)."],
+  "esi-location.read_online.v1": ["Read your online status", "Whether you are online and when you last logged in (character_overview)."],
+  "esi-skills.read_skills.v1": ["Read your skills", "Trained skills and attributes (get_skills, get_attributes, can_fly, skill_plan)."],
+  "esi-skills.read_skillqueue.v1": ["Read your skill queue", "What is training now (get_skill_queue, character_overview)."],
+  "esi-wallet.read_character_wallet.v1": ["Read your wallet", "Balance, journal and transactions (get_wallet_journal, get_wallet_transactions, character_overview)."],
+  "esi-assets.read_assets.v1": ["Read your assets", "Items you own and where (get_assets, appraise_assets)."],
+  "esi-markets.read_character_orders.v1": ["Read your market orders", "Your open buy and sell orders (get_market_orders). It cannot place or change orders."],
+  "esi-industry.read_character_jobs.v1": ["Read your industry jobs", "Manufacturing and research jobs (get_industry_jobs)."],
+  "esi-fittings.read_fittings.v1": ["Read your saved fittings", "Your saved ship fittings (get_fittings)."],
+  "esi-fittings.write_fittings.v1": ["Save and delete fittings", "The only write scope. Used only if you turn on fitting writes for a specific app (create_fitting, delete_fitting). Off by default."],
+  "esi-contracts.read_character_contracts.v1": ["Read your contracts", "Your contracts and their items (get_contracts, get_contract_items)."],
+  "esi-clones.read_clones.v1": ["Read your clones", "Jump clones and their locations (get_clones)."],
+  "esi-clones.read_implants.v1": ["Read your implants", "Implants in your active clone (get_clones)."],
+  "esi-killmails.read_killmails.v1": ["Read your killmails", "Your recent kills and losses (get_killmails)."],
+  "esi-characters.read_standings.v1": ["Read your standings", "Standings with agents, corporations and factions (get_standings)."],
+  "esi-characters.read_loyalty.v1": ["Read your loyalty points", "Loyalty points per corporation (get_loyalty_points)."],
+  "esi-industry.read_character_mining.v1": ["Read your mining ledger", "Ore you mined per day (get_mining_ledger)."],
+  "esi-planets.manage_planets.v1": ["Read your planets (CCP calls it \"manage\")", "CCP's only scope for reading planetary colonies (get_planets). We call only its read (GET) endpoints and never change a colony."],
+  "esi.activity.char:read": ["Read your military activity", "Which military campaign objectives you took part in (get_military_participation)."],
+};

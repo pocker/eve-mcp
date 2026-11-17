@@ -6,6 +6,10 @@ import { Button } from "./ui";
 
 export const REPO_URL = "https://github.com/pocker/eve-mcp";
 
+// git archive fills src/version.txt with the commit hash (export-subst). Unreplaced or empty means local dev.
+const raw = readFileSync(new URL("../version.txt", import.meta.url), "utf8").trim();
+const commit = /^[0-9a-f]{40}$/.test(raw) ? raw : null;
+
 // Content hash in the URL lets the stylesheet be cached forever (Cloudflare included) yet change on deploy.
 export const cssVersion = sha256(readFileSync(new URL("./app.css", import.meta.url), "utf8")).slice(0, 10);
 
@@ -79,6 +83,7 @@ export function Layout(props: { title: string; user?: { id: number; isAdmin: boo
             <span>Free to use. Donations are voluntary, help cover hosting and unlock nothing.</span>
             <a href="/privacy">Privacy</a>
             <a href={REPO_URL} rel="noopener noreferrer">Source</a>
+            {commit ? <a href={`${REPO_URL}/commit/${commit}`} rel="noopener noreferrer">Version {commit.slice(0, 7)}</a> : <span>Version dev</span>}
           </span>
         </footer>
       </body>

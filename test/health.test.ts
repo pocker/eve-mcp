@@ -4,6 +4,7 @@ import { config } from "../src/config";
 import { cssVersion } from "../src/web/layout";
 import { sha256 } from "../src/crypto";
 import { features } from "../src/features";
+import { EVE_SCOPES, SCOPE_INFO } from "../src/esi/scopes";
 import { dbAvailable } from "./helpers/db";
 
 test("/health answers 200 when Postgres is up, 503 when not", async () => {
@@ -97,4 +98,33 @@ test("pages share a per-IP limit; /health and routes with their own limit are no
   } finally {
     config.clientIpHeader = prev;
   }
+});
+
+test("every EVE scope has a plain-English reason, and no extra keys", () => {
+  expect(Object.keys(SCOPE_INFO).sort()).toEqual([...EVE_SCOPES].sort());
+  for (const [name, why] of Object.values(SCOPE_INFO)) expect(name.length > 0 && why.length > 0).toBe(true);
+});
+
+test("home page explains the scopes, links the source and shows the dev version", async () => {
+  const html = await (await app.request("/")).text();
+  expect(html).toContain(`What EVE will ask you to allow (${EVE_SCOPES.length} permissions)`);
+  for (const s of EVE_SCOPES) expect(html).toContain(s);
+  expect(html).toContain("https://github.com/pocker/eve-mcp#self-hosting");
+  expect(html).toContain("Version dev");
+});
+
+test("security.txt follows RFC 9116, privacy links CCP's revoke page and the security doc", async () => {
+  const res = await app.request("/.well-known/security.txt");
+  expect(res.status).toBe(200);
+  expect(res.headers.get("content-type")).toBe("text/plain; charset=utf-8");
+  const text = await res.text();
+  expect(text).toContain("Contact: https://github.com/pocker/eve-mcp/security/advisories/new");
+  expect(text).toContain("Canonical: http://localhost:3000/.well-known/security.txt");
+  expect(text).not.toContain("@");
+  const expires = new Date(text.match(/^Expires: (.+)$/m)![1]!);
+  expect(expires.getTime()).toBeGreaterThan(Date.now() + 170 * 86400_000);
+
+  const privacy = await (await app.request("/privacy")).text();
+  expect(privacy).toContain("https://developers.eveonline.com/authorized-apps");
+  expect(privacy).toContain("docs/SECURITY.md");
 });

@@ -9,12 +9,13 @@ import { destroySession, requireUser } from "../auth/session";
 import type { AppEnv } from "../types";
 import { KofiButton, Layout, Mark, REPO_URL } from "./layout";
 import { MessagePage } from "./pages";
-import { ActionRow, Button, Empty, Notice, PageHeader, Panel, RowActions } from "./ui";
+import { ActionRow, Button, Empty, Notice, PageHeader, Panel, RowActions, ScopeDetails } from "./ui";
 import { EXAMPLES, features } from "../features";
 import { CCP_NOTICE, NEVER_SENT, sources, sourceStatus, type SourceStatus } from "../sources";
 
 export const routes = new Hono<AppEnv>();
 
+const CCP_APPS_URL = "https://developers.eveonline.com/authorized-apps";
 const id = z.coerce.number().int().positive();
 const fmt = (d: Date | string | null) => (d ? new Date(d).toISOString().slice(0, 10) : "");
 
@@ -44,6 +45,10 @@ routes.get("/", (c) => {
             <Button href="/connect">How to connect</Button>
             <Button href="/features">What is available</Button>
           </ActionRow>
+          {!user && <ScopeDetails />}
+          <p class="muted">
+            Open source (AGPL-3.0). <a href={REPO_URL} rel="noopener noreferrer">Read the code</a> or <a href={`${REPO_URL}#self-hosting`} rel="noopener noreferrer">run your own copy</a>.
+          </p>
         </div>
         <div class="flow" aria-hidden="true">
           <div class="panel flow-step">
@@ -126,6 +131,22 @@ routes.get("/robots.txt", (c) =>
     ].join("\n"),
     200,
     { "Cache-Control": PUBLIC_CACHE },
+  ),
+);
+
+// RFC 9116. Expires is computed per request, so it never goes stale.
+routes.get("/.well-known/security.txt", (c) =>
+  c.text(
+    [
+      `Contact: ${REPO_URL}/security/advisories/new`,
+      `Expires: ${new Date(Date.now() + 180 * 86400_000).toISOString()}`,
+      "Preferred-Languages: en",
+      `Canonical: ${config.publicUrl}/.well-known/security.txt`,
+      `Policy: ${REPO_URL}/blob/main/docs/SECURITY.md`,
+      "",
+    ].join("\n"),
+    200,
+    { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": PUBLIC_CACHE },
   ),
 );
 
@@ -328,6 +349,10 @@ routes.get("/characters", requireUser, async (c) => {
         subtitle={`${rows.length} linked. Re-link keeps a character in your connected apps. Remove also removes it from every connected app.`}
         actions={<Button variant="primary" href="/auth/login?add=1&return_to=/characters">Add character</Button>}
       />
+      <ScopeDetails />
+      <p class="muted">
+        You can also revoke EVE MCP's access on CCP's side, at <a href={CCP_APPS_URL} rel="noopener noreferrer">EVE's Authorized Apps page</a>. This works even if this site is down.
+      </p>
       {rows.length === 0 ? (
         <Empty>No characters linked.</Empty>
       ) : (
@@ -402,7 +427,13 @@ function PrivacyText(props: { short?: boolean }) {
         <li>Characters, tokens and app grants stay until you remove them or delete your account.</li>
       </ul>
       <p>We keep no usage tracking, analytics or ads. The outside systems we call are listed on <a href="/features">Features</a>.</p>
-      {!props.short && <p>Deleting your account removes everything above and asks EVE to revoke the stored tokens. You can do this on the <a href="/account">Account</a> page.</p>}
+      {!props.short && (
+        <>
+          <p>Deleting your account removes everything above and asks EVE to revoke the stored tokens. You can do this on the <a href="/account">Account</a> page.</p>
+          <p>You can also revoke EVE MCP's access on CCP's side, at <a href={CCP_APPS_URL} rel="noopener noreferrer">EVE's Authorized Apps page</a>. This works even if this site is down. It needs your EVE login.</p>
+          <p>How we protect your data is written down in <a href={`${REPO_URL}/blob/main/docs/SECURITY.md`} rel="noopener noreferrer">How we protect your data</a>.</p>
+        </>
+      )}
     </>
   );
 }
@@ -413,6 +444,10 @@ routes.get("/privacy", (c) =>
       <PageHeader title="Privacy" />
       <Panel>
         <PrivacyText />
+      </Panel>
+      <Panel>
+        <h2>Permissions we ask EVE for</h2>
+        <ScopeDetails open />
       </Panel>
     </Layout>,
   ),

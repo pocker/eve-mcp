@@ -1,4 +1,5 @@
 import type { Child } from "hono/jsx";
+import { EVE_SCOPES, SCOPE_INFO } from "../esi/scopes";
 
 // Shared UI parts. Pages use these instead of hand-writing markup; app.css has the matching styles.
 // Rules (also in ARCHITECTURE.md, "UI conventions"): one size per button, `small` only in table rows.
@@ -66,5 +67,24 @@ export function Empty(props: { children?: Child }) {
     <div class="empty">
       <p>{props.children}</p>
     </div>
+  );
+}
+
+// What EVE's consent page will list, in plain words. Shown next to every sign-in button and on /privacy.
+export function ScopeDetails(props: { open?: boolean }) {
+  return (
+    <details class="tools scopes" open={props.open}>
+      <summary>What EVE will ask you to allow ({EVE_SCOPES.length} permissions)</summary>
+      <p class="muted">
+        Everything is read-only, with one opt-in exception: saving fittings, which stays off unless you turn it on for a specific app. EVE's page shows CCP's own names for these, some of which sound scarier than they are.
+      </p>
+      <ul>
+        {EVE_SCOPES.map((s) => (
+          <li>
+            <b>{SCOPE_INFO[s][0]}</b>: {SCOPE_INFO[s][1]} <small class="muted"><code>{s}</code></small>
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }

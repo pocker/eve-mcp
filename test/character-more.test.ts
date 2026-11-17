@@ -153,6 +153,6 @@ describe.skipIf(!dbAvailable)("more character tools (needs Postgres)", () => {
 
   test("scope names are all in EVE_SCOPES", async () => {
     const { EVE_SCOPES } = await import("../src/esi/scopes");
-    for (const s of Object.values(SCOPE)) expect(EVE_SCOPES).toContain(s);
+    for (const s of Object.values(SCOPE)) expect(EVE_SCOPES as readonly string[]).toContain(s);
   });
 });

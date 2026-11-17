@@ -238,6 +238,8 @@ label img { width: 48px; height: 48px; border-radius: 8px; flex: none; }
 .grid-2 .panel ul, .grid-3 .panel ul { margin-bottom: 0; padding-left: 1.2rem; color: var(--ink-2); font-size: 0.95rem; }
 .grid-2 .panel p, .grid-3 .panel p { font-size: 0.95rem; }
 details.tools summary { cursor: pointer; font-size: 0.95rem; font-weight: 600; margin-bottom: var(--s2); }
+details.scopes ul { padding-left: 1.2rem; font-size: 0.9rem; }
+.scopes li { margin-bottom: var(--s2); }
 .tools code { display: inline-block; margin: 0 0.25rem 0.25rem 0; font-size: 0.8rem; }
 .panel .pill.plain { white-space: normal; border-radius: 8px; }
 .tcat h3 { display: flex; gap: var(--s3); align-items: center; }
