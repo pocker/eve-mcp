@@ -128,3 +128,16 @@ test("security.txt follows RFC 9116, privacy links CCP's revoke page and the sec
   expect(privacy).toContain("https://developers.eveonline.com/authorized-apps");
   expect(privacy).toContain("docs/SECURITY.md");
 });
+
+test("/connect has the server URL, every client and the copy script", async () => {
+  const html = await (await app.request("/connect")).text();
+  expect(html).toContain("http://localhost:3000/mcp");
+  for (const h of ["Claude (claude.ai", "ChatGPT", "Claude Code", "Codex", "Cursor", "VS Code", "Other MCP clients", "Try these first", "If something goes wrong"]) expect(html).toContain(h);
+  const src = html.match(/src="(\/static\/copy\.js\?v=[0-9a-f]{10})"/)?.[1];
+  expect(src).toBeTruthy();
+  const js = await app.request("/static/copy.js");
+  expect(js.status).toBe(200);
+  expect(js.headers.get("content-type")).toContain("text/javascript");
+  expect(js.headers.get("cache-control")).toContain("max-age=2592000");
+  expect(await (await app.request("/llms.txt")).text()).toContain("codex mcp login eve");
+});

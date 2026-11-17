@@ -254,7 +254,15 @@ details.scopes ul { padding-left: 1.2rem; font-size: 0.9rem; }
 }
 
 /* connect */
-.url code { display: inline-block; max-width: 100%; font-size: 1.1rem; padding: var(--s3) 0.8rem; background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; }
+.code { margin: 0 0 var(--s3); padding: var(--s3) 0.8rem; background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; overflow-x: auto; font-size: 0.9rem; }
+.code code { background: none; padding: 0; overflow-wrap: normal; }
+.code.big { font-size: 1.1rem; }
+.copy-btn { margin: 0 0 var(--s4); }
+.steps { padding-left: 1.4rem; margin: 0 0 var(--s3); }
+.steps li { margin-bottom: var(--s2); max-width: 65ch; }
+details.client { border-top: 1px solid var(--line); padding: var(--s3) 0; }
+details.client summary { cursor: pointer; font-weight: 600; }
+details.client[open] summary { margin-bottom: var(--s3); }
 
 /* footer */
 .support { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) 0.9rem; margin: var(--s3) 0 0; }

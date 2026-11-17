@@ -1,10 +1,13 @@
+import { readFileSync } from "node:fs";
 import { Hono, type Context } from "hono";
+import type { Child } from "hono/jsx";
 import { z } from "zod";
 import { sql } from "../db/db";
 import { decrypt } from "../crypto";
 import { config } from "../config";
 import { purgeCharacterCache, unlinkCharacter } from "../auth/characters";
 import { revokeEveToken } from "../auth/eve-sso";
+import { sha256 } from "../crypto";
 import { destroySession, requireUser } from "../auth/session";
 import type { AppEnv } from "../types";
 import { KofiButton, Layout, Mark, REPO_URL } from "./layout";
@@ -83,34 +86,154 @@ routes.get("/", (c) => {
   );
 });
 
+const copyVersion = sha256(readFileSync(new URL("./static/copy.js", import.meta.url), "utf8")).slice(0, 10);
+
+// A code block; static/copy.js adds its Copy button.
+const Code = (props: { children: string }) => (
+  <pre class="code" data-copy>
+    <code>{props.children}</code>
+  </pre>
+);
+
+const Client = (props: { name: string; children: Child }) => (
+  <details class="client">
+    <summary>{props.name}</summary>
+    {props.children}
+  </details>
+);
+
 routes.get("/connect", (c) => {
   const url = `${config.publicUrl}/mcp`;
+  const mcpJson = JSON.stringify({ mcpServers: { eve: { url } } }, null, 2);
+  const vscodeJson = JSON.stringify({ servers: { eve: { type: "http", url } } }, null, 2);
   return c.html(
     <Layout title="Connect" user={c.var.user} active="/connect">
-      <PageHeader title="Connect an AI client" subtitle="The client sends you here to sign in and choose which characters it may read." />
-      <Panel>
+      <PageHeader title="Connect an AI client" subtitle="Add one web address to your AI app. It sends you here to sign in and choose which characters it may read." />
+      <Panel tone="accent">
         <h2>Server URL</h2>
-        <p class="url">
+        <pre class="code big" data-copy>
           <code>{url}</code>
-        </p>
+        </pre>
       </Panel>
-      <div class="grid-3">
-        <Panel>
-          <h2>Claude</h2>
-          <p>Settings, Connectors, Add custom connector. Paste the URL, then connect.</p>
-        </Panel>
-        <Panel>
-          <h2>ChatGPT</h2>
-          <p>Settings, Connectors, add a custom connector (developer mode). Paste the URL and choose OAuth.</p>
-        </Panel>
-        <Panel>
-          <h2>Other MCP clients</h2>
-          <p>Add a remote MCP server of type Streamable HTTP with the URL above. Authorization is OAuth 2.1, started by the client.</p>
-        </Panel>
-      </div>
+      <Panel>
+        <h2>How it works</h2>
+        <ol class="steps">
+          <li>Add the URL above to your AI app (pick your app below).</li>
+          <li>Your AI app opens this site. Sign in with EVE and tick which characters it may see.</li>
+          <li>Ask your AI app about your characters.</li>
+        </ol>
+        <p class="muted">You do not need to sign in here first, your AI app sends you. If you already did, that is fine.</p>
+      </Panel>
+      <Panel>
+        <h2>Pick your AI app</h2>
+        <Client name="Claude (claude.ai, desktop and mobile apps)">
+          <ol class="steps">
+            <li>Open claude.ai (or the desktop app) and go to Customize, then Connectors.</li>
+            <li>Click Add, then Add custom connector.</li>
+            <li>Enter the name EVE and paste the server URL. Click Continue and follow the next prompts (the defaults work), then Add.</li>
+            <li>Click Connect on the new connector. Sign in with EVE and choose your characters.</li>
+            <li>In a chat, use the + button, then Connectors, and switch EVE on.</li>
+          </ol>
+          <p class="muted">Free plans can add one custom connector. On Team and Enterprise plans an owner adds it first (Organization settings, Connectors, Add, Custom, Web); then each member clicks Connect. The connector then also shows up in the Claude mobile apps.</p>
+        </Client>
+        <Client name="ChatGPT">
+          <ol class="steps">
+            <li>Open ChatGPT in a web browser.</li>
+            <li>Go to Settings, then Apps (older versions call it Connectors), then Advanced settings, and turn on Developer mode.</li>
+            <li>Click Create, enter the name EVE, paste the server URL and set authentication to OAuth.</li>
+            <li>Tick the box that says you understand the risk, then Create.</li>
+            <li>Click Connect, sign in with EVE and choose your characters. Then pick EVE in a chat.</li>
+          </ol>
+          <p class="muted">ChatGPT only lets you add your own connectors in Developer mode, which needs a paid plan. On Business, Enterprise and Edu workspaces an admin may have to allow it first. Menu names change often; if yours differ, look for "Developer mode" and "add a remote MCP server".</p>
+        </Client>
+        <Client name="Claude Code (command line)">
+          <ol class="steps">
+            <li>Run this in your terminal:</li>
+          </ol>
+          <Code>{`claude mcp add --transport http eve ${url}`}</Code>
+          <ol class="steps" start={2}>
+            <li>Start Claude Code and type <code>/mcp</code>. Choose eve and follow the steps in your browser: sign in with EVE and choose your characters.</li>
+          </ol>
+          <p class="muted">If the browser does not open, copy the link Claude Code shows. If the page after sign-in shows a connection error, paste its full address back into Claude Code when it asks.</p>
+        </Client>
+        <Client name="Codex (command line and IDE)">
+          <ol class="steps">
+            <li>Run this in your terminal:</li>
+          </ol>
+          <Code>{`codex mcp add eve --url ${url}`}</Code>
+          <ol class="steps" start={2}>
+            <li>Sign in:</li>
+          </ol>
+          <Code>codex mcp login eve</Code>
+          <ol class="steps" start={3}>
+            <li>Your browser opens. Sign in with EVE and choose your characters. If there is no browser on this machine, add <code>--no-browser</code>, open the link it prints on another device, then paste the final address back into the terminal.</li>
+          </ol>
+          <p class="muted">The Codex IDE extension shares this setup. Or add it there: gear menu, MCP servers, Add server, choose Streamable HTTP, enter the URL, Save, Restart extension, then Authenticate.</p>
+        </Client>
+        <Client name="Cursor">
+          <ol class="steps">
+            <li>Open <code>~/.cursor/mcp.json</code> (all projects) or <code>.cursor/mcp.json</code> in a project. Create it if it does not exist.</li>
+            <li>Add the server:</li>
+          </ol>
+          <Code>{mcpJson}</Code>
+          <ol class="steps" start={3}>
+            <li>Save. Cursor shows the server under Customize in the sidebar. Follow its sign-in prompt, sign in with EVE and choose your characters.</li>
+          </ol>
+          <p class="muted">Use the Cursor desktop app. If no sign-in prompt appears, restart Cursor.</p>
+        </Client>
+        <Client name="VS Code (GitHub Copilot)">
+          <ol class="steps">
+            <li>Open the Command Palette (Ctrl+Shift+P, or Cmd+Shift+P on Mac) and run <code>MCP: Add Server</code>.</li>
+            <li>Choose HTTP, paste the server URL and give it the ID <code>eve</code>.</li>
+            <li>Start the server when asked, and complete the sign-in in your browser: sign in with EVE and choose your characters.</li>
+            <li>Ask in Copilot Chat.</li>
+          </ol>
+          <p>Or add this to <code>.vscode/mcp.json</code> in your project:</p>
+          <Code>{vscodeJson}</Code>
+          <p class="muted">Needs GitHub Copilot. Your organization may restrict MCP servers.</p>
+        </Client>
+        <Client name="Other MCP clients">
+          <ol class="steps">
+            <li>Add a remote MCP server (type Streamable HTTP, sometimes just "HTTP") with the server URL above.</li>
+            <li>Choose OAuth if asked. You do not need an API key or client ID; the client registers itself.</li>
+            <li>Sign in with EVE when your client opens the browser, and choose your characters.</li>
+          </ol>
+          <p class="muted">Clients that only run local programs (stdio) cannot use this server.</p>
+        </Client>
+      </Panel>
+      <Panel>
+        <h2>Try these first</h2>
+        <ul>
+          {EXAMPLES.slice(0, 5).map((e) => (
+            <li>{e}</li>
+          ))}
+        </ul>
+      </Panel>
+      <Panel>
+        <h2>If something goes wrong</h2>
+        <ul>
+          <li>
+            <b>The sign-in window did not open.</b> Allow popups for your AI app, then start the connection again. In a command line tool, copy the link it prints.
+          </li>
+          <li>
+            <b>"This app is not known" or "return address is not registered".</b> Your AI app is not supported yet.{" "}
+            <a href={`${REPO_URL}/issues`} rel="noopener noreferrer">Tell us on GitHub</a> which app it is.
+          </li>
+          <li>
+            <b>A tool says a scope is missing or a character needs re-linking.</b> Re-link that character on <a href="/characters">your characters page</a>.
+          </li>
+          <li>
+            <b>To disconnect.</b> Revoke the app on <a href="/apps">your connected apps page</a>, or on <a href={CCP_APPS_URL} rel="noopener noreferrer">EVE's authorized apps page</a>.
+          </li>
+          <li>
+            <b>Worried about your data?</b> Read the <a href="/privacy">privacy page</a>.
+          </li>
+        </ul>
+      </Panel>
       <p class="muted">
         Curious what it talks to? See <a href="/features">what is available</a>.
       </p>
+      <script src={`/static/copy.js?v=${copyVersion}`} defer></script>
     </Layout>,
   );
 });
@@ -173,8 +296,14 @@ The server is read-only by default. It can create and delete saved fittings only
 
 ## Connect
 
-- Claude: Settings, Connectors, Add custom connector. Paste the endpoint URL, then connect.
-- ChatGPT: Settings, Connectors, add a custom connector (developer mode). Paste the URL and choose OAuth.
+You do not sign in on the website first: the client sends you to EVE SSO, where you choose which characters it may read.
+
+- Claude (claude.ai, desktop, mobile): Customize, Connectors, Add, Add custom connector. Paste the endpoint URL, then Connect.
+- ChatGPT (web): Settings, Apps (Connectors in older versions), Advanced settings, turn on Developer mode, Create. Paste the URL and choose OAuth. Needs a paid plan.
+- Claude Code: \`claude mcp add --transport http eve ${base}/mcp\`, then \`/mcp\` to sign in.
+- Codex: \`codex mcp add eve --url ${base}/mcp\`, then \`codex mcp login eve\`.
+- Cursor: add \`{"mcpServers":{"eve":{"url":"${base}/mcp"}}}\` to \`~/.cursor/mcp.json\`, then follow the sign-in prompt.
+- VS Code (GitHub Copilot): run "MCP: Add Server", choose HTTP, paste the URL.
 - Other MCP clients: add a remote MCP server of type Streamable HTTP with the endpoint URL. Authorization is OAuth 2.1.
 
 ## Tools
@@ -197,6 +326,7 @@ const staticFile = (file: string, type: string) => (c: Context) =>
   c.body(Bun.file(new URL(`./static/${file}`, import.meta.url)).stream(), 200, { "Content-Type": type, "Cache-Control": "public, max-age=2592000" });
 routes.get("/favicon.ico", staticFile("favicon.ico", "image/x-icon"));
 routes.get("/favicon.svg", staticFile("favicon.svg", "image/svg+xml"));
+routes.get("/static/copy.js", staticFile("copy.js", "text/javascript; charset=utf-8"));
 
 function StatusPill(props: { id: string; status: SourceStatus }) {
   const { sde, esi } = props.status;
