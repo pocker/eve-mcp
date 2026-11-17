@@ -75,7 +75,7 @@ phase 3. Implemented against **MCP spec 2026-07-28** (`basic/authorization`); th
   `token_endpoint_auth_method` (absent means `none`). Other methods in the list, like
   `private_key_jwt`, are ignored, never used.
 - Redirect URIs (DCR and CIMD): `https://`, or `http://` on `127.0.0.1`/`localhost`/`[::1]` with
-  any port. No custom schemes (the spec only allows localhost or HTTPS). Exact match at authorize.
+  any port. No custom schemes (the spec only allows localhost or HTTPS). Exact match at authorize, except loopback `http`, where any port is allowed (RFC 8252 section 7.3).
 - Responses carry `iss` (RFC 9207) and the metadata sets `authorization_response_iss_parameter_supported`.
 - Scope: one value, `eve:read`, accepted and ignored; what a client can see is decided by the grant.
 - Deviation: the consent POST answers with a small page (meta refresh + link) instead of a 302, because

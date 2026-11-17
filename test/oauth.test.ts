@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { Hono } from "hono";
-import { fetchMetadataDocument, isPrivateIp, net, validRedirectUri } from "../src/oauth/clients";
+import { fetchMetadataDocument, isPrivateIp, net, redirectMatches, validRedirectUri } from "../src/oauth/clients";
 import { routes } from "../src/oauth/routes";
 import { mcpAuth } from "../src/oauth/bearer";
 import { sql } from "../src/db/db";
@@ -374,6 +374,38 @@ describe.skipIf(!dbAvailable)("OAuth flow (needs Postgres)", () => {
       expect(html).toContain("<strong>cimd.example</strong>");
       expect(html).toContain("calls itself");
       expect(html).not.toContain("Unverified app");
+    } finally {
+      net.fetch = realFetch;
+      net.resolve = realResolve;
+    }
+  });
+
+  test("redirectMatches: exact, or any port on the same loopback http host", () => {
+    expect(redirectMatches("http://127.0.0.1/callback", "http://127.0.0.1:33935/callback")).toBe(true);
+    expect(redirectMatches("http://localhost:1/cb", "http://localhost:2/cb")).toBe(true);
+    expect(redirectMatches("http://[::1]/cb", "http://[::1]:8080/cb")).toBe(true);
+    expect(redirectMatches("https://app.example/cb", "https://app.example/cb")).toBe(true);
+    expect(redirectMatches("http://127.0.0.1/callback", "http://127.0.0.1:5/other")).toBe(false);
+    expect(redirectMatches("http://127.0.0.1/cb?a=1", "http://127.0.0.1:5/cb?a=2")).toBe(false);
+    expect(redirectMatches("https://127.0.0.1/cb", "https://127.0.0.1:5/cb")).toBe(false);
+    expect(redirectMatches("https://app.example/cb", "https://app.example:444/cb")).toBe(false);
+    expect(redirectMatches("http://127.0.0.1/cb", "http://localhost:5/cb")).toBe(false);
+    expect(redirectMatches("http://app.example/cb", "http://app.example:5/cb")).toBe(false);
+    expect(redirectMatches("http://127.0.0.1/cb", "not a url")).toBe(false);
+  });
+
+  test("consent page for a Codex-shaped client accepts a random loopback port", async () => {
+    const { userId } = await setup();
+    const cid = "https://chatgpt.com/oauth/codex/client.json";
+    const realFetch = net.fetch;
+    const realResolve = net.resolve;
+    net.resolve = async () => ["93.184.216.34"];
+    net.fetch = async () =>
+      new Response(JSON.stringify({ client_id: cid, client_uri: "https://chatgpt.com/codex", application_type: "native", redirect_uris: ["http://127.0.0.1/callback", "http://localhost/callback"], token_endpoint_auth_method: "none", token_endpoint_auth_methods_supported: ["none"], grant_types: ["authorization_code", "refresh_token"], response_types: ["code"], client_name: "Codex" }));
+    try {
+      const q = authzQuery(cid).replace(encodeURIComponent(redirect), encodeURIComponent("http://127.0.0.1:33935/callback"));
+      const res = await app.request(`/oauth/authorize?${q}`, { headers: { "x-user": String(userId) } });
+      expect(res.status).toBe(200);
     } finally {
       net.fetch = realFetch;
       net.resolve = realResolve;

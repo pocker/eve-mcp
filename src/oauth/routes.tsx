@@ -10,7 +10,7 @@ import { clientIp, rateLimit } from "../ratelimit";
 import { requireUser } from "../auth/session";
 import type { AppEnv } from "../types";
 import { RESOURCE } from "./bearer";
-import { type Client, getClient, registerSchema } from "./clients";
+import { type Client, getClient, redirectMatches, registerSchema } from "./clients";
 import { audit, revokeGrant } from "./grants";
 import { AppsPage, ConsentPage, ManagePage, ErrorPage, RedirectPage, type AuthzFields, type CharRow } from "./pages";
 
@@ -121,7 +121,7 @@ async function checkAuthorize(p: Record<string, unknown>, post: boolean): Promis
   if (!clientId || !redirectUri) return { kind: "page", message: "The app did not say who it is. Go back and start again." };
   const client = await getClient(clientId);
   if (!client) return { kind: "page", message: "This app is not known to eve-mcp." };
-  if (!client.redirectUris.includes(redirectUri)) return { kind: "page", message: "The app's return address is not registered." };
+  if (!client.redirectUris.some((r) => redirectMatches(r, redirectUri))) return { kind: "page", message: "The app's return address is not registered." };
 
   const state = str(p.state);
   const fail = (error: string, description: string): Check => ({ kind: "redirect", url: redirectWith(redirectUri, { error, error_description: description, state }) });

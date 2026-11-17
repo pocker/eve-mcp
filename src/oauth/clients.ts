@@ -25,6 +25,22 @@ export function validRedirectUri(s: string): boolean {
   return u.protocol === "http:" && LOOPBACK.has(u.hostname);
 }
 
+// Exact match, except loopback http where any port is allowed (RFC 8252 section 7.3).
+export function redirectMatches(registered: string, requested: string): boolean {
+  if (registered === requested) return true;
+  try {
+    const a = new URL(registered);
+    const b = new URL(requested);
+    return (
+      a.protocol === "http:" && b.protocol === "http:" &&
+      LOOPBACK.has(a.hostname) && a.hostname === b.hostname &&
+      a.pathname === b.pathname && a.search === b.search
+    );
+  } catch {
+    return false;
+  }
+}
+
 const redirectUris = z.array(z.string().max(2000).refine(validRedirectUri, "invalid redirect URI")).min(1).max(10);
 const clientName = z.string().trim().min(1).max(100);
 
