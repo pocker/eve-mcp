@@ -42,7 +42,7 @@ The server asks for these ESI scopes at every sign-in (the list is `EVE_SCOPES` 
 | `esi-location.read_location.v1` | `character_overview` (system or station) |
 | `esi-location.read_ship_type.v1` | `character_overview` (current ship) |
 | `esi-location.read_online.v1` | `character_overview` (online status) |
-| `esi-skills.read_skills.v1` | `get_skills`, `get_attributes`, `can_fly`, `skill_plan` |
+| `esi-skills.read_skills.v1` | `get_skills`, `get_attributes`, `can_fly`, `skill_plan`, `fit_stats` (with a character) |
 | `esi-skills.read_skillqueue.v1` | `get_skill_queue`, `character_overview` |
 | `esi-wallet.read_character_wallet.v1` | `get_wallet_journal`, `get_wallet_transactions`, `character_overview` |
 | `esi-assets.read_assets.v1` | `get_assets`, `appraise_assets` |
@@ -188,6 +188,8 @@ If you find the hosted service useful, you can [buy me a coffee](https://ko-fi.c
 ## License
 
 The code is licensed under AGPL-3.0-or-later (see [LICENSE](LICENSE)). If you run a modified copy as a public service, you must offer its users the source of your version. The site footer links to the source of the hosted one.
+
+Ship fit simulation (`fit_stats`) uses the npm package [eve-fit-engine](https://github.com/capsuleers-app/capsuleers.fitting-engine), licensed GPL-3.0-or-later, which is compatible with AGPL-3.0-or-later. It brings its own copy of CCP static data.
 
 EVE Online data, names and images belong to CCP hf. and are not covered by this licence. Wiki text returned by the wiki tools is from the EVE University Wiki, licensed [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
 

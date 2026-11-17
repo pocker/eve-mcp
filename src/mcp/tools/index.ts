@@ -3,6 +3,7 @@ import { theraConnections } from "./evescout";
 import * as cm from "./character-more";
 import * as m from "./market";
 import * as f from "./fittings";
+import { fitStats } from "./fit";
 import * as i from "./intel";
 import * as n from "./news";
 import * as s from "./sde";
@@ -25,6 +26,7 @@ export const tools: Tool[] = [
   f.getFittings,
   f.createFitting,
   f.deleteFitting,
+  fitStats,
   u.resolveNames,
   s.getTypeInfo,
   u.planRoute,

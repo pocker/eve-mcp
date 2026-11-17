@@ -32,6 +32,7 @@ export const toolInfo: Record<string, [Category, string]> = {
   get_fittings: ["Fittings (write, opt-in)", "Your saved ship fittings."],
   create_fitting: ["Fittings (write, opt-in)", "Save a fitting to your character. Only if you allowed writes."],
   delete_fitting: ["Fittings (write, opt-in)", "Delete a saved fitting. Only if you allowed writes."],
+  fit_stats: ["Static game data", "Simulate a ship fit from EFT: DPS, EHP, resists, cap, speed, with All-V or your skills."],
   get_type_info: ["Static game data", "Stats, attributes and masteries of any ship, module or item."],
   skill_requirements: ["Static game data", "Skills an item needs, and a skill's prerequisites."],
   blueprint_info: ["Static game data", "Materials, time and skills for a blueprint."],

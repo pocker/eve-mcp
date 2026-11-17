@@ -48,6 +48,7 @@ Each phase ends with something that runs and has tests. Tick items when done (sa
 - [x] Fittings: `get_fittings`, and `create_fitting` / `delete_fitting` (first write scope, opt-in per grant).
 - [x] Contracts, clones/implants, killmails, wallet transactions, standings, loyalty points, mining ledger, planets, attributes.
 - [x] Market: `hub_prices`, `price_history`, `appraise_assets`.
+- [x] Fit simulation: `fit_stats` (eve-fit-engine, All-V or a character's skills).
 - [ ] Structures.
 - [x] zKillboard tools: `zkill_stats`, `zkill_kills`, `killmail_detail` (with loss fit as EFT), prompt `pilot_check`.
 - [x] Scope upgrade flow: tool says which scope is missing, `/characters` shows "Re-link" on every character (updates tokens and scopes in place, keeps app access).

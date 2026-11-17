@@ -4,7 +4,7 @@ import { MIN_ERROR_BUDGET } from "./esi/client";
 // The single list of external systems we talk to. Used by /sources and the about_sources tool.
 // Add a source here and in docs/SECURITY.md (fixed outbound hosts) when code starts calling a new host.
 export type Source = {
-  id: "sso" | "esi" | "sde" | "news" | "wiki" | "zkill" | "evescout";
+  id: "sso" | "esi" | "sde" | "news" | "wiki" | "zkill" | "evescout" | "fit";
   name: string;
   host: string;
   url: string;
@@ -21,7 +21,7 @@ export const CCP_NOTICE = '© 2014 CCP hf. All rights reserved. "EVE", "EVE Onli
 const ESI_CHARACTER_TOOLS = [
   "character_overview", "get_skills", "get_skill_queue", "get_attributes", "get_clones", "get_assets", "get_wallet_journal", "get_wallet_transactions",
   "get_market_orders", "get_industry_jobs", "get_contracts", "get_contract_items", "get_killmails", "get_standings", "get_loyalty_points",
-  "get_mining_ledger", "get_planets", "get_military_participation", "get_fittings", "create_fitting", "delete_fitting", "can_fly", "skill_plan", "appraise_assets",
+  "get_mining_ledger", "get_planets", "get_military_participation", "get_fittings", "create_fitting", "delete_fitting", "can_fly", "skill_plan", "appraise_assets", "fit_stats",
 ];
 
 export const sources: Source[] = [
@@ -111,6 +111,18 @@ export const sources: Source[] = [
     sends: "Nothing: one public request without parameters.",
     credit: "Data from EVE-Scout (Signal Cartel), eve-scout.com.",
     tools: ["thera_connections"],
+  },
+  {
+    id: "fit",
+    name: "eve-fit-engine (local)",
+    host: "no outside host",
+    url: "https://github.com/capsuleers-app/capsuleers.fitting-engine",
+    purpose: "Ship fit simulation: DPS, EHP, resists, capacitor, speed.",
+    provides: ["Stats for an EFT fit, calculated inside this server with a Pyfa-compatible engine (GPL-3.0-or-later)"],
+    freshness: "Uses a static data snapshot bundled with the engine, so it changes only when the engine package is updated and can lag a patch",
+    sends: "Nothing leaves the server. The EFT text you give is calculated locally and not stored.",
+    credit: "Calculation by eve-fit-engine (Capsuleers), based on CCP static data © CCP hf.",
+    tools: ["fit_stats"],
   },
 ];
 

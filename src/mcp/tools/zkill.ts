@@ -170,7 +170,7 @@ const shapeKillId = (body: unknown) => {
 
 export const killmailDetail = defineTool({
   name: "killmail_detail",
-  description: `One killmail in full: victim, attackers grouped by corporation, alliance and ship (max 30 lines), items destroyed and dropped, ISK totals from zKillboard, and the victim's fit as EFT text (usable with check_fit or create_fitting). hash is optional: without it zKillboard is asked once for it. The fit is the loss fit as recorded; destroyed charges may be missing. ${NOTE}`,
+  description: `One killmail in full: victim, attackers grouped by corporation, alliance and ship (max 30 lines), items destroyed and dropped, ISK totals from zKillboard, and the victim's fit as EFT text (usable with fit_stats, check_fit or create_fitting). hash is optional: without it zKillboard is asked once for it. The fit is the loss fit as recorded; destroyed charges may be missing. ${NOTE}`,
   input: { killmail_id: z.number().int().positive(), hash: z.string().regex(HASH).optional().describe("The killmail hash (40 hex characters); omit to look it up on zKillboard") },
   run: async (i) => {
     let hash = i.hash;

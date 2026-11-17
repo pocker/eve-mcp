@@ -27,7 +27,7 @@ A web scan for EVE content that could feed new MCP tools. [V] = read on the sour
 - **EVE-KILL API** [V] `api.eve-kill.com/api`: no key; battles, wars, pilot intel, common fits per hull,
   EFT per killmail. Open source. Fallback for zKillboard.
 - **eve-fit-engine** (npm) [V]: DPS, EHP, cap from EFT, matches Pyfa on 99.2% of fits. **GPL-3.0**:
-  needs a licence decision.
+  licence decision: used for `fit_stats` (GPL-3.0-or-later is compatible with our AGPL; see docs/SECURITY.md, Decisions).
 - **Fuzzwork aggregates** [V] `market.fuzzwork.co.uk/api`: percentile prices. Asks for caching.
 - **Adam4EVE** [V] `api.adam4eve.eu`: traded-volume estimates. 1 request / 5 s, contact User-Agent required.
 - **MutaMarket** [V]: abyssal module listings and roll stats, public JSON.

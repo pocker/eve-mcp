@@ -37,8 +37,8 @@ ${a.eft}
 1. list_characters to find the character_id.
 2. Read the hull and the module names from the EFT text.
 3. can_fly for the hull and for each distinct module. Collect every missing skill with have vs need.
-4. get_type_info for the hull (slots, CPU, powergrid) and for modules whose fit looks doubtful.
-5. Report: what the character cannot use yet, total training time for the missing skills, and obvious fitting problems.
+4. fit_stats with the EFT text and the character_id: DPS, EHP, resists, capacitor, speed, CPU and powergrid use, fit problems and unknown items. Use get_type_info only for modules that need a closer look.
+5. Report: what the character cannot use yet, total training time for the missing skills, the key numbers from fit_stats, and obvious fitting problems.
 Do not save the fitting unless I ask.`,
   },
   {

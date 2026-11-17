@@ -143,6 +143,7 @@ phase 3. Implemented against **MCP spec 2026-07-28** (`basic/authorization`); th
 | `get_fittings` | `character_id` | `/characters/{id}/fittings` (+ names) | `esi-fittings.read_fittings.v1` |
 | `create_fitting` (write) | `character_id`, `eft`, `description?` | `POST /characters/{id}/fittings` (+ `POST /universe/ids`, types, groups) | `esi-fittings.write_fittings.v1` |
 | `delete_fitting` (write) | `character_id`, `fitting_id` | `DELETE /characters/{id}/fittings/{fitting_id}` | `esi-fittings.write_fittings.v1` |
+| `fit_stats` | `eft`, `character_id?` | with `character_id`: `/characters/{id}/skills`; otherwise none (local engine) | `esi-skills.read_skills.v1` (only with `character_id`) |
 | `resolve_names` | `names[]` | `POST /universe/ids` | public |
 | `get_type_info` | `type_id` or `name` | none (SDE tables); ESI `/universe/types/{id}` until the SDE is imported | public |
 | `skill_requirements` | `name_or_id` | none (SDE) | public |
@@ -191,6 +192,15 @@ ESI has no update endpoint for fittings (create a new one, delete the old).
 (only if no line ends in `xN`), then drones and cargo. `[Empty ... slot]` lines keep the slot index. `Module, Charge`:
 the charge is ignored. `Item xN` lines go to `DroneBay` (category 18), `FighterBay` (87) or `Cargo`. Names resolve with
 `POST /universe/ids`; unknown names fail the whole call before anything is written. Name 1-50 chars, description up to 500, up to 512 items.
+
+### Fit simulation (`src/mcp/tools/fit.ts`)
+
+- `fit_stats` runs the npm package `eve-fit-engine` (Pyfa-compatible engine, GPL-3.0-or-later; our AGPL code may use it) inside the app. No outside host. The package ships a static data snapshot (about 8 MB JSON in `node_modules/eve-fit-engine/data`, so the production `bun install` must keep it; it does) that is not our own `sde_*` tables. It changes only when the package version changes, so a new patch's items show as unknown until we bump it.
+- The dataset loads lazily on the first call, once per process (the engine caches the load promise): about 40 ms and 70 MB resident on the dev box, one compute about 20 ms. It is read-only static data, so replicas are independent and safe.
+- Input: `eft` (max 20,000 characters, parsed by the engine, which keeps charges) and optional `character_id`. With it, `requireCharacter` runs first (same grant check as every character tool), the skills come from ESI `/characters/{id}/skills` (`trained_skill_level`, same call as `can_fly`), and the engine uses them as its skill profile; modules the character cannot use yet are listed in `unmet_skills`. Without it: All-V.
+- Output is a capped summary (not the full engine result): ship, skills used, DPS (peak and reload-amortised), alpha, weapons grouped by type, per-layer HP, EHP and resists in percent, repair rates, capacitor, speed, align, warp, targeting, CPU/powergrid/calibration/drone bandwidth, `problems` (over CPU, powergrid, slots, hardpoints), and the engine's warnings (unknown item lines). Item names and EFT lines are user text: capped, returned as data.
+- Limits: EHP is against uniform damage (no damage profile input), implants and boosters are not applied, no projected effects (EWAR, fleet boosts), no target profile.
+- Engine errors (bad header, unknown ship) become `bad_eft` (400). A compute is synchronous CPU work of a few tens of milliseconds, covered by the `/mcp` rate limits.
 
 **Skill queue writes are impossible:** ESI has no endpoint to change the skill queue. Do not try to add one.
 
@@ -390,7 +400,7 @@ src/
   auth/             routes.tsx (/auth/login, /auth/eve/callback, /auth/logout), eve-sso.ts (authorize URL, token exchange/refresh/revoke, JWT verify),
                     characters.ts (unlinkCharacter), session.ts
   oauth/            routes.tsx (metadata, register, authorize, token, revoke, /apps), clients.ts (redirect rules, CIMD fetch + SSRF guard), grants.ts (audit, revokeGrant), pages.tsx, bearer.ts (mcpAuth)
-  mcp/              routes.ts (handleMcp, /mcp route), server.ts (builds McpServer per grant), instructions.ts, prompts.ts, tools/ (index.ts, util.ts, character.ts, character-more.ts, market.ts, universe.ts, fittings.ts, eft.ts), grant.ts (Grant, requireCharacter)
+  mcp/              routes.ts (handleMcp, /mcp route), server.ts (builds McpServer per grant), instructions.ts, prompts.ts, tools/ (index.ts, util.ts, character.ts, character-more.ts, fit.ts, market.ts, universe.ts, fittings.ts, eft.ts), grant.ts (Grant, requireCharacter)
   esi/              client.ts (calls, guard, paging), cache.ts, token.ts (accessToken, refresh), character.ts (scope check + authed calls), scopes.ts, names.ts (ID -> name, cached)
   sources.ts, features.ts  single lists behind /features and about_sources (external systems; tool categories and summaries)
   web/              routes.tsx, pages.tsx (message page), layout.tsx, ui.tsx (Button, PageHeader, Panel, Notice, ActionRow, RowActions, Empty), app.css (served at /static/app.css, so the CSP needs no inline style), static/ (favicon.svg, favicon.ico)
@@ -446,6 +456,7 @@ callback serves login, add character and OAuth consent; `sso_states.purpose` tel
 - **Body size:** the app caps every request body at 1 MB (`bodyLimit`); `/mcp` at 256 KB.
 - **Rate limits:** per IP on `/auth/*` and `/oauth/*` (per route), on `/mcp` (300/min per IP, then 120/min per grant), and one shared 120/min per IP on everything else (pages, forms, `/.well-known/*`, `index.ts`). `/health` has none. All are in-memory per replica (`src/ratelimit.ts`).
 - **Static data (SDE):** the first start imports CCP's static data in the background (under 1 minute on a fast link; needs about 100 MB of temp space in the container's `/tmp` and 40 MB of Postgres). Until it is done `get_type_info` uses ESI and the other SDE tools say it is still loading. Force an import with `docker compose -p eve-mcp exec app bun run sde:import`. The image needs the `unzip` package (Containerfile installs it); the app container needs outbound HTTPS to `developers.eveonline.com`.
+- **Fit engine data:** `fit_stats` reads `node_modules/eve-fit-engine/data` (8 MB). The Containerfile's `bun install --production` copies the whole package into `node_modules`, and the final image copies that folder, so the data is in the image. No volume, env var or outbound host is needed.
 - **Health:** `GET /health` checks Postgres with `select 1`, no ESI call.
 - **Cloudflare in front:** DNS record proxied (orange cloud). The SSL mode must match what your
   proxy serves (use "Full (strict)" with a valid cert).

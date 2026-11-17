@@ -54,6 +54,7 @@ protect, from whom, and how. Update it with every change to auth or exposed surf
 | ESI ban (error limit) | Error-limit guard, cache, real `User-Agent` contact. HTTP `420` and ungrouped `429` pause all ESI calls on every replica (`esi_status`). Grouped `429` and nearly empty buckets (under 5% left) refuse only that group and character (`esi_buckets`, in Postgres), without calling ESI. |
 | Secrets in logs | Logger redacts `authorization`, `cookie`, `code`, `token`, `refresh_token`, `client_secret`, `password` (any key containing token, secret, cookie, authorization, password; nested). Never log ESI bodies of authed calls. |
 | Account takeover by admin bug | Admin can list, disable and delete users and see no usage data, never their ESI data, tool arguments or tokens. Delete refuses self and other admins, needs a confirm checkbox, goes through the global CSRF/origin checks, and is audit-logged (`user_deleted`, under the admin's id since the deleted user's audit rows cascade). |
+| Fit simulation (`fit_stats`) CPU and memory | The engine runs in-process on user EFT text (max 20,000 characters, parsed by the engine, never stored or logged). One compute is tens of milliseconds, the 8 MB dataset loads once per process (about 70 MB resident). It is covered by the `/mcp` per-IP and per-grant rate limits. With `character_id` it goes through `requireCharacter` first, then one cached ESI skills call; another user's character is refused like in every character tool. Output is a capped summary; item and EFT text is returned as data. No outbound call. The engine is third-party GPL code in our dependency tree: pinned by `bun.lock`, bump it deliberately. |
 | Data retention | Account delete removes all rows and calls SSO revoke for each character. Audit log keeps no tokens. |
 
 ## Rules for adding things
@@ -65,6 +66,8 @@ protect, from whom, and how. Update it with every change to auth or exposed surf
 - A new public endpoint: add a rate limit and a row in the threat table.
 
 ## Decisions
+
+- **2026-11-17: `eve-fit-engine` dependency (GPL-3.0-or-later).** It is used for `fit_stats`. GPL-3.0 code can be combined with our AGPL-3.0-or-later code, and the source is public. It runs locally with its bundled static data: no new outbound host. Credit is in the README and the `fit` entry in `src/sources.ts`.
 
 - **2026-11-15: licence and notices.** Code is AGPL-3.0-or-later (`LICENSE`), so users of the hosted service can get the source. The CCP notice from EVE Developer License §7.1 is in the footer, README and `CCP_NOTICE`. EVE data and images are not under our licence. Wiki text is CC BY-SA 4.0 and tools return the licence URL.
 - **2026-11-15: privacy.** The public `/privacy` page and the `/account` panel list what we store and for how long. We keep no usage tracking, analytics or ads. Audit rows are deleted with the account, except `client_registered` rows (app name and registering IP, no account): pruned after 90 days. Other audit rows have no prune timer; add one if the log grows. Keep the page true when storage changes.
